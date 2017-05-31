@@ -1,0 +1,34 @@
+[DEFAULT]
+file_last_ts_default = last_timestamp/last_ts_default.txt
+bulk_insert_amount = 1
+bulk_update_amount = 5000
+
+#MongoDB
+mongodb_host_primary = mongo1.net.br:27017
+mongodb_host_secondary = mongo2.net.br:27017
+mongodb_database = database
+mongodb_database_log = integracao
+
+#Amazon CloudSearch
+cloudsearch_user = automate
+cloudsearch_id = AKPOPZHHGDHUUAHGHXBNEILIEQ
+cloudsearch_key = 89l/aSFk9c7JjhdadjayHGS72hHJAmAJTafSvOl8j0
+cloudsearch_domain = search-live
+cloudsearch_region = us-east-1
+
+[DRIVERS]
+collection = drivers
+oplog_ns = %(mongodb_database)s.%(collection)s
+file_last_ts_all = last_timestamp/last_ts_%(collection)s_all.txt
+file_last_ts_insert = last_timestamp/last_ts_%(collection)s_insert.txt
+file_last_ts_update = last_timestamp/last_ts_%(collection)s_update.txt
+file_last_ts_delete = last_timestamp/last_ts_%(collection)s_delete.txt
+
+[CUSTOMERS]
+collection = customers
+oplog_ns = %(mongodb_database)s.%(collection)s
+file_last_ts_all = last_timestamp/last_ts_%(collection)s_all.txt
+file_last_ts_insert = last_timestamp/last_ts_%(collection)s_insert.txt
+file_last_ts_update = last_timestamp/last_ts_%(collection)s_update.txt
+file_last_ts_delete = last_timestamp/last_ts_%(collection)s_delete.txt
+
