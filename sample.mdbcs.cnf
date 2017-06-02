@@ -4,15 +4,15 @@ bulk_insert_amount = 1
 bulk_update_amount = 5000
 
 #MongoDB
-mongodb_host_primary = mongo1.net.br:27017
-mongodb_host_secondary = mongo2.net.br:27017
-mongodb_database = database
+mongodb_host_primary = mongo10.net.br:27017
+mongodb_host_secondary = mongo20.net.br:27017
+mongodb_database = database_live
 mongodb_database_log = integracao
 
 #Amazon CloudSearch
 cloudsearch_user = automate
-cloudsearch_id = AKPOPZHHGDHUUAHGHXBNEILIEQ
-cloudsearch_key = 89l/aSFk9c7JjhdadjayHGS72hHJAmAJTafSvOl8j0
+cloudsearch_id = BKJGDFRFWWNEILGDA
+cloudsearch_key = 8lk/rSek9c7Hdh8dh27dhsa5zzmacTafSvOl8j0
 cloudsearch_domain = search-live
 cloudsearch_region = us-east-1
 
@@ -31,4 +31,3 @@ file_last_ts_all = last_timestamp/last_ts_%(collection)s_all.txt
 file_last_ts_insert = last_timestamp/last_ts_%(collection)s_insert.txt
 file_last_ts_update = last_timestamp/last_ts_%(collection)s_update.txt
 file_last_ts_delete = last_timestamp/last_ts_%(collection)s_delete.txt
-

@@ -70,6 +70,12 @@ class MongoDBCloudSearch():
                 [insert], [update], [delete], [all] ",
             default='insert'
             )
+        parser.add_option(
+            '-d', '--debug',
+            help="Show Debug [bool]",
+            type="int",
+            default=False
+            )
         return parser
 
     def get_config_file(self, cnf_file_name):
@@ -176,7 +182,8 @@ class MongoDBCloudSearch():
                 self.row_number = 0
                 return service.commit()
             except Exception as error:
-                return('Error commit %s' % error)
+                print('Error commit %s' % error)
+                raise
         return self.row_number
 
     def get_bulk_amount(self, op):
@@ -208,7 +215,7 @@ class MongoDBCloudSearch():
         return last_ts_saved
 
     def debug(self, state=False):
-        if state is True and self.debug_dic:
+        if bool(state) is True and self.debug_dic:
             print('\n---------------------------------')
             for v in self.debug_dic:
                 print('[%s] %s\n' % (v, self.debug_dic[v]))
@@ -221,7 +228,7 @@ class MongoDBCloudSearch():
                 self.debug_dic['response']))
         self.debug_dic = {}
 
-    def main(self, debug=False):
+    def main(self):
         option_parser = self.build_option_parser()
         opts, args = option_parser.parse_args()
 
@@ -250,7 +257,7 @@ class MongoDBCloudSearch():
                 ).sort("$natural", 1)
             cursor.add_option(_QUERY_OPTIONS['oplog_replay'])
             service = domain.get_document_service()
-            print('criou domain')
+            print(service)
             try:
                 while cursor.alive:
                     try:
@@ -303,9 +310,10 @@ class MongoDBCloudSearch():
                         time.sleep(self.secs_reconect)
                     except Exception as error:
                         print('Error - %s' % error)
-                    self.debug(debug)
+                    self.debug(opts.debug)
             except:
                 raise
 
 if __name__ == '__main__':
-    MongoDBCloudSearch().main(debug=True)
+    MongoDBCloudSearch().main()
+
