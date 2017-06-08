@@ -3,15 +3,10 @@
 
 #Replicate data from MongoDB to Amazon CloudSearch
 
-import json
+import os
 import time
 import bson
-import string
 import boto.cloudsearch
-import sys
-import os
-#from os import path
-#from os import system
 from datetime import datetime
 from pymongo import MongoClient
 from pymongo import ReadPreference
@@ -27,10 +22,11 @@ class MongoDBCloudSearch():
     def __init__(self):
         cnf_file_name = 'mdbcs.cnf'
         self.section = 'DEFAULT'
-        self.secs_reconect = 10
+        self.secs_reconect = 15
         self.row_number = 0
-        self.default_time = datetime(2017, 5, 1)
+        self.default_time = datetime(2017, 6, 6)
         self.debug_dic = {}
+        self.service = None
         self.parser = SafeConfigParser()
         self.parser.read(self.get_config_file(cnf_file_name))
         connection_primary = MongoClient(
@@ -168,23 +164,32 @@ class MongoDBCloudSearch():
         #collection[:-1] for plural collection name e.g: driver[s]
         return '%s_%s' % (collection[:-1], str(oplog_doc_id))
 
-    def cloudsearch_delete_op(self, cloudsearch_id, service):
+    def cloudsearch_delete_op(self, cloudsearch_id):
         try:
-            service.delete(cloudsearch_id)
-            return service.commit()
+            self.service.delete(cloudsearch_id)
+            return self.service.commit()
         except Exception as error:
             return('Error commit %s' % error)
 
-    def cloudsearch_commit_op(self, service, op):
+    def cloudsearch_commit_op(self, op):
         self.row_number += 1
         if self.row_number % self.get_bulk_amount(op) == 0:
             try:
                 self.row_number = 0
-                return service.commit()
+                commit = self.service.commit()
+                self.service.clear_sdf()
+                return commit
             except Exception as error:
                 print('Error commit %s' % error)
-                raise
         return self.row_number
+
+    def cloudsearch_reconect(self, domain):
+        time.sleep(self.secs_reconect)
+        try:
+            self.service.commit()
+            return domain.get_document_service()
+        except:
+            return self.service
 
     def get_bulk_amount(self, op):
         if op == 'i':
@@ -219,13 +224,15 @@ class MongoDBCloudSearch():
             print('\n---------------------------------')
             for v in self.debug_dic:
                 print('[%s] %s\n' % (v, self.debug_dic[v]))
-        elif(
-                'cloudsearch_id' in self.debug_dic
-                and
-                'response' in self.debug_dic):
-            print('[%s] %s' % (
-                self.debug_dic['cloudsearch_id'],
-                self.debug_dic['response']))
+        else:
+            try:
+                print('[%s] %s - %s' % (
+                    self.debug_dic['cloudsearch_id'],
+                    self.debug_dic['last_ts_saved'],
+                    self.debug_dic['response']
+                    ))
+            except:
+                pass
         self.debug_dic = {}
 
     def main(self):
@@ -237,8 +244,11 @@ class MongoDBCloudSearch():
         last_ts = self.get_last_timestamp_saved(file_path)
         last_ts_saved = 0
         domain = self.cloudsearch_connect()
+        self.service = domain.get_document_service()
         fields = FieldsFormat()
 
+        print('\nStarting...')
+        print(self.service)
         print(file_path)
         print(last_ts)
         print(opts)
@@ -256,8 +266,6 @@ class MongoDBCloudSearch():
                 **tail_opts
                 ).sort("$natural", 1)
             cursor.add_option(_QUERY_OPTIONS['oplog_replay'])
-            service = domain.get_document_service()
-            print(service)
             try:
                 while cursor.alive:
                     try:
@@ -268,52 +276,57 @@ class MongoDBCloudSearch():
                         cloudsearch_id = self.cloudsearch_gen_id(
                             opts.collection,
                             oplog_doc_id)
+                        doc_add = None
 
-                        self.debug_dic.update({'oplog_doc': oplog_doc})
-                        self.debug_dic.update(
-                            {'cloudsearch_id': cloudsearch_id})
-
-                        if(
-                                oplog_doc['op'] in ['u', 'i']
+                        if(oplog_doc['op'] in ['u', 'i']
                                 and
                                 fields.check_fields_in_oplog(oplog_fields)):
 
-                            source_doc = self.get_mongodb_source_doc(
-                                oplog_doc_id,
-                                opts.collection)
                             mongodb_doc = fields.map_mongodb_oplog_schema(
-                                source_doc)
+                                self.get_mongodb_source_doc(
+                                    oplog_doc_id,
+                                    opts.collection)
+                                )
                             doc_add = fields.map_fields(
                                 opts.collection,
                                 mongodb_doc)
-                            service.add(cloudsearch_id, doc_add)
+                            #Add to CloudSearch
+                            new_doc = {}
+                            for a in doc_add:
+                                new_doc.update({a: doc_add[a]})
+                            self.service.add(cloudsearch_id, new_doc)
                             commited = self.cloudsearch_commit_op(
-                                service,
                                 oplog_doc['op'])
                             # Debug Add
-                            self.debug_dic.update({'add': True})
-                            self.debug_dic.update({'mongodb_doc': mongodb_doc})
-                            self.debug_dic.update({'doc_add': doc_add})
-                            self.debug_dic.update({'response': commited})
+                            self.debug_dic.update({
+                                'add': True,
+                                'doc_add': new_doc,
+                                'response': commited
+                                })
                         elif oplog_doc['op'] == 'd':
                             deleted = self.cloudsearch_delete_op(
-                                cloudsearch_id,
-                                service)
+                                cloudsearch_id)
                             self.debug_dic.update({'response': deleted})
                         last_ts_saved = self.save_last_timestamp(
                             file_path,
                             last_ts,
                             last_ts_saved)
-                        self.debug_dic.update({'last_ts_saved': last_ts_saved})
+                        self.debug_dic.update({
+                            'oplog_doc': oplog_doc,
+                            'cloudsearch_id': cloudsearch_id,
+                            'last_ts_saved': last_ts_saved
+                            })
                     except(AutoReconnect, StopIteration):
-                        print('Autoconnect')
-                        time.sleep(self.secs_reconect)
+                        self.service = self.cloudsearch_reconect(domain)
+                        print('Reconecting %s - %s' % (
+                            last_ts_saved,
+                            self.service))
                     except Exception as error:
                         print('Error - %s' % error)
                     self.debug(opts.debug)
-            except:
-                raise
+            except Exception as error:
+                print('Error - Main %s' % error)
+                continue
 
 if __name__ == '__main__':
     MongoDBCloudSearch().main()
-
