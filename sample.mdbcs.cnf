@@ -4,16 +4,16 @@ bulk_insert_amount = 1
 bulk_update_amount = 5000
 
 #MongoDB
-mongodb_host_primary = mongo10.net.br:27017
-mongodb_host_secondary = mongo20.net.br:27017
-mongodb_database = database_live
-mongodb_database_log = integracao
+mongodb_host_primary = <host:port>
+mongodb_host_secondary = <host:port>
+mongodb_database = <database>
+mongodb_database_log = <database-log>
 
 #Amazon CloudSearch
-cloudsearch_user = automate
-cloudsearch_id = BKJGDFRFWWNEILGDA
-cloudsearch_key = 8lk/rSek9c7Hdh8dh27dhsa5zzmacTafSvOl8j0
-cloudsearch_domain = search-live
+cloudsearch_user = <user>
+cloudsearch_id = <id>
+cloudsearch_key = <value>
+cloudsearch_domain = <domain>
 cloudsearch_region = us-east-1
 
 [DRIVERS]
